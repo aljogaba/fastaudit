@@ -4,6 +4,17 @@ Versión de referencia: `v0.1.0-dev`
 
 FASTAudit está en desarrollo y validación. Este documento registra el alcance de las comprobaciones implementadas y los criterios para validar su comportamiento antes de una versión estable.
 
+## Estado de pruebas
+
+El 2 de noviembre de 2026 se ejecutó la batería inicial del núcleo con **Node.js 22.16.0**:
+
+- 5 pruebas ejecutadas;
+- 5 aprobadas;
+- 0 fallos;
+- 0 omitidas.
+
+Estas pruebas verifican el comportamiento programado del núcleo en casos controlados; no sustituyen la validación comparativa con datasets de referencia que debe realizarse antes de una versión estable.
+
 ## Principios
 
 1. FASTAudit debe operar sobre cualquier secuencia nucleotídica en formato FASTA.
