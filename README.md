@@ -56,6 +56,18 @@ https://aljogaba.github.io/fastaudit/
 
 https://github.com/aljogaba/fastaudit
 
+## Pruebas y validación
+
+El núcleo no requiere dependencias externas. Para ejecutar la batería automatizada:
+
+```bash
+npm test
+```
+
+Estado inicial: **5/5 pruebas aprobadas** con Node.js 22.16.0 el 2 de noviembre de 2026.
+
+La estrategia y los límites de validación se documentan en [`docs/validation.md`](docs/validation.md).
+
 ## Autoría
 
 Desarrollado por **Alberto Jorge Galindo-Barboza**.
