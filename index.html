@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FASTAudit | Laboratorio de Sistemas Porcícolas</title>
+  <meta name="description" content="Herramienta web para auditar longitud, alfabeto IUPAC, ambigüedades, integridad de secuencias codificantes, SHA-256 y secuencias idénticas en archivos FASTA." />
+  <link rel="icon" href="/favicon.png?v=3" type="image/png" />
+  <link rel="apple-touch-icon" href="/favicon.png?v=3" />
+  <meta name="theme-color" content="#1F3D2F" />
+  <link rel="stylesheet" href="assets/css/tool-shell.css" />
+  <link rel="stylesheet" href="assets/css/styles.css" />
+</head>
+<body>
+  <header class="site-header" aria-label="Identidad del proyecto">
+    <div class="container header-grid">
+      <div class="brand-block">
+        <p class="eyebrow">Laboratorio de Sistemas Porcícolas</p>
+        <h1>FASTAudit</h1>
+        <p class="subtitle">Auditor de calidad e integridad de secuencias FASTA</p>
+        <p class="author-line">Autor: <a href="https://aljogaba.github.io/" target="_blank" rel="noopener">Alberto Jorge Galindo-Barboza</a></p>
+      </div>
+      <div class="header-actions">
+        <a class="profile-button" href="https://aljogaba.github.io/" target="_blank" rel="noopener">Perfil profesional</a>
+        <div class="version-card"><span>Versión</span><strong>0.1.0-dev</strong></div>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-shell">
+    <section class="hero-card">
+      <div>
+        <p class="eyebrow">Control de calidad local y trazable</p>
+        <h2>Revise un FASTA antes de analizarlo, clasificarlo o incorporarlo a un dataset.</h2>
+        <p>FASTAudit inspecciona cada registro sin enviar las secuencias a un servidor. Puede usar cualquier región nucleotídica: defina la longitud esperada, active o desactive los controles de secuencia codificante y conserve un reporte reproducible.</p>
+      </div>
+      <div class="hero-rule">
+        <strong>Principio de trabajo</strong>
+        <span>FASTAudit informa lo que encuentra. No corrige, recorta, imputa ni modifica automáticamente las secuencias fuente.</span>
+      </div>
+    </section>
+
+    <div class="workspace-grid">
+      <aside class="side-nav" aria-label="Menú de navegación">
+        <div class="side-nav-title">Contenido</div>
+        <a href="#input-panel"><span>01</span> Entrada</a>
+        <a href="#criteria-panel"><span>02</span> Criterios</a>
+        <a href="#results-panel"><span>03</span> Resultados</a>
+        <a href="#report-panel"><span>04</span> Reporte</a>
+        <a href="#methods-panel"><span>05</span> Métodos</a>
+      </aside>
+
+      <div class="main-column">
+        <section id="input-panel" class="panel nav-target">
+          <div class="panel-heading">
+            <div class="panel-heading-group">
+              <div class="panel-step-badge">01</div>
+              <div><p class="eyebrow">Entrada</p><h2>Cargue o pegue el FASTA</h2></div>
+            </div>
+          </div>
+          <p class="section-note">Si selecciona un archivo y también pega texto, se analizará el archivo seleccionado.</p>
+
+          <div id="drop-zone" class="drop-zone">
+            <strong>Arrastre aquí un archivo FASTA</strong>
+            <p>o selecciónelo desde su equipo. Se aceptan archivos de texto como .fasta, .fa, .fas y .txt.</p>
+            <input id="fasta-file" type="file" accept=".fasta,.fa,.fas,.fna,.txt,text/plain" />
+          </div>
+
+          <div class="or-divider">o</div>
+
+          <label class="field" for="fasta-text">
+            <span>Pegar FASTA</span>
+            <textarea id="fasta-text" spellcheck="false" placeholder=">secuencia_1&#10;ATGACGT...&#10;>secuencia_2&#10;ATGACGT..."></textarea>
+            <small class="field-help">Cada registro debe comenzar con un encabezado que inicie con &gt;.</small>
+          </label>
+
+          <div class="privacy-note"><strong>Privacidad:</strong> el análisis se ejecuta íntegramente en su navegador. FASTAudit no carga el FASTA a un servidor.</div>
+        </section>
+
+        <section id="criteria-panel" class="panel nav-target">
+          <div class="panel-heading">
+            <div class="panel-heading-group">
+              <div class="panel-step-badge">02</div>
+              <div><p class="eyebrow">Criterios</p><h2>Defina qué desea verificar</h2></div>
+            </div>
+          </div>
+
+          <div class="input-grid">
+            <label class="field" for="expected-length">
+              <span>Longitud esperada (nt)</span>
+              <input id="expected-length" type="number" min="1" step="1" value="603" inputmode="numeric" />
+              <small class="field-help">603 nt es solo el valor inicial. Cámbielo para cualquier otra región o deje el campo vacío para no aplicar un criterio de longitud.</small>
+            </label>
+
+            <div class="option-card">
+              <h3>Controles de secuencia codificante</h3>
+              <label class="toggle-line" for="coding-mode">
+                <input id="coding-mode" type="checkbox" checked />
+                <span><strong>Evaluar CDS en marco 0</strong><small>Comprueba múltiplo de 3, inicio ATG, stop terminal y stops internos. Desactívelo para regiones no codificantes.</small></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button id="reset-button" class="secondary-button" type="button">Limpiar</button>
+            <button id="analyze-button" class="primary-button" type="button">Analizar FASTA</button>
+          </div>
+          <p id="form-message" class="form-message" hidden></p>
+        </section>
+
+        <section id="results-panel" class="panel nav-target" hidden>
+          <div class="panel-heading">
+            <div class="panel-heading-group">
+              <div class="panel-step-badge">03</div>
+              <div><p class="eyebrow">Resultados</p><h2>Auditoría del conjunto</h2></div>
+            </div>
+          </div>
+          <div id="dataset-meta" class="dataset-meta"></div>
+          <div id="summary-grid" class="summary-grid"></div>
+
+          <div class="table-wrap" style="margin-top:16px">
+            <table class="results-table">
+              <thead>
+                <tr>
+                  <th>#</th><th>ID</th><th>Encabezado</th><th>Longitud</th><th>Longitud esperada</th><th>Encabezado</th>
+                  <th>Alfabeto</th><th>No-IUPAC</th><th>Ambigüedades</th><th>Inicio</th><th>Terminación</th><th>Stops internos</th>
+                  <th>SHA-256</th><th>Haplotipo</th><th>Estado</th>
+                </tr>
+              </thead>
+              <tbody id="results-body"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="report-panel" class="panel nav-target" hidden>
+          <div class="panel-heading">
+            <div class="panel-heading-group">
+              <div class="panel-step-badge">04</div>
+              <div><p class="eyebrow">Trazabilidad</p><h2>Exportar resultados</h2></div>
+            </div>
+          </div>
+          <div id="report-preview" class="report-preview"></div>
+          <div class="result-actions">
+            <button id="download-csv" class="secondary-button" type="button">Descargar CSV</button>
+            <button id="download-report" class="primary-button" type="button">Descargar reporte HTML</button>
+          </div>
+        </section>
+
+        <section id="methods-panel" class="panel nav-target">
+          <div class="panel-heading">
+            <div class="panel-heading-group">
+              <div class="panel-step-badge">05</div>
+              <div><p class="eyebrow">Métodos</p><h2>Qué verifica FASTAudit</h2></div>
+            </div>
+          </div>
+
+          <div class="method-grid">
+            <article><h3>Longitud</h3><p>Calcula nucleótidos por registro después de eliminar espacios y saltos de línea. La longitud objetivo es un parámetro del usuario, no una regla fija del programa.</p></article>
+            <article><h3>Alfabeto IUPAC</h3><p>Reconoce A, C, G, T y los códigos ambiguos R, Y, S, W, K, M, B, D, H, V y N. Otros caracteres se reportan como no-IUPAC.</p></article>
+            <article><h3>ACGT vs. ambigüedad</h3><p>Distingue secuencias estrictamente A/C/G/T de secuencias IUPAC válidas que contienen uno o más códigos ambiguos.</p></article>
+            <article><h3>Secuencia codificante</h3><p>Cuando está activada, evalúa el marco 0: múltiplo de 3, ATG inicial, stop terminal canónico TAA/TAG/TGA y stops internos.</p></article>
+            <article><h3>SHA-256</h3><p>Calcula una huella criptográfica de la secuencia normalizada. Secuencias idénticas producen el mismo SHA-256.</p></article>
+            <article><h3>Haplotipos exactos</h3><p>Agrupa secuencias nucleotídicas idénticas sin inferir relaciones filogenéticas. Cada secuencia distinta recibe un identificador H001, H002, etc.</p></article>
+          </div>
+
+          <details class="reference-box">
+            <summary>Convenciones y límites de interpretación</summary>
+            <p>FASTAudit es una herramienta de inspección estructural. No sustituye revisión de cromatogramas, evaluación de calidad de lecturas, alineamiento, inferencia filogenética, clasificación taxonómica ni validación biológica de una secuencia.</p>
+            <ul>
+              <li>La comparación de encabezados duplicados es exacta sobre el texto completo posterior a <code>&gt;</code>.</li>
+              <li>La normalización convierte la secuencia a mayúsculas y elimina espacios y saltos de línea; no elimina otros caracteres.</li>
+              <li>Los stops internos se buscan en marco 0 cuando el modo codificante está activo.</li>
+              <li>Los grupos de haplotipos representan identidad exacta, no distancia genética.</li>
+              <li>FASTAudit no modifica el archivo fuente ni imputa caracteres ambiguos.</li>
+            </ul>
+          </details>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer" aria-label="Créditos, cita y licencia">
+    <div class="container footer-grid">
+      <div class="footer-brand">
+        <p class="eyebrow">Laboratorio de Sistemas Porcícolas</p>
+        <h2>FASTAudit</h2>
+        <p>Auditor de calidad e integridad de secuencias FASTA, desarrollado por <a href="https://aljogaba.github.io/" target="_blank" rel="noopener">Alberto Jorge Galindo-Barboza</a>.</p>
+      </div>
+      <div class="footer-card">
+        <strong>Cita sugerida</strong>
+        <p>Galindo-Barboza, A. J. (2026). <em>FASTAudit: Auditor de calidad e integridad de secuencias FASTA</em> (v0.1.0-dev). Laboratorio de Sistemas Porcícolas.</p>
+      </div>
+      <div class="footer-card">
+        <strong>Licencia y derechos</strong>
+        <p>© 2026 Alberto Jorge Galindo-Barboza. Todos los derechos reservados.</p>
+        <p>Uso, distribución, modificación o reproducción sujetos a autorización expresa del autor.</p>
+        <p><a href="https://github.com/aljogaba/fastaudit" target="_blank" rel="noopener">Repositorio</a></p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/fastaudit-core.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/tool-shell.js"></script>
+</body>
+</html>
