@@ -7,9 +7,9 @@ authors:
   - family-names: "Galindo-Barboza"
     given-names: "Alberto Jorge"
 year: 2026
-url: "https://aljogaba-academico.github.io/fastaudit/"
-repository-code: "https://github.com/aljogaba-academico/fastaudit"
-abstract: "Herramienta web para control de calidad estructural, validación de alfabetos nucleotídicos e inspección reproducible de secuencias en formato FASTA."
+url: "https://aljogaba.github.io/fastaudit/"
+repository-code: "https://github.com/aljogaba/fastaudit"
+abstract: "Herramienta web para control de calidad estructural, validación de alfabetos nucleotídicos, detección de secuencias idénticas y generación de reportes trazables a partir de archivos FASTA."
 keywords:
   - FASTA
   - control de calidad
