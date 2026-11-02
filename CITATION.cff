@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "Si utiliza FASTAudit, cite este software como se indica."
+title: "FASTAudit: Auditor de calidad e integridad de secuencias FASTA"
+type: software
+version: "0.1.0-dev"
+authors:
+  - family-names: "Galindo-Barboza"
+    given-names: "Alberto Jorge"
+year: 2026
+url: "https://aljogaba-academico.github.io/fastaudit/"
+repository-code: "https://github.com/aljogaba-academico/fastaudit"
+abstract: "Herramienta web para control de calidad estructural, validación de alfabetos nucleotídicos e inspección reproducible de secuencias en formato FASTA."
+keywords:
+  - FASTA
+  - control de calidad
+  - secuencias nucleotídicas
+  - IUPAC
+  - bioinformática
+  - trazabilidad
+  - epidemiología molecular
