@@ -123,6 +123,19 @@ Las pruebas cubren, entre otros casos:
 
 La estrategia y los límites de validación se documentan en [`docs/validation.md`](docs/validation.md).
 
+## Documentación
+
+FASTAudit mantiene la documentación versionada dentro del propio repositorio. El índice se encuentra en [`docs/README.md`](docs/README.md).
+
+Documentos principales:
+
+- [`docs/manual-usuario.md`](docs/manual-usuario.md): manual de uso formal de la aplicación;
+- [`docs/arquitectura.md`](docs/arquitectura.md): arquitectura técnica, flujo de datos, componentes y decisiones de diseño;
+- [`docs/validation.md`](docs/validation.md): estrategia de pruebas y límites de validación;
+- [`docs/trazabilidad-registro.md`](docs/trazabilidad-registro.md): expediente interno de autoría, versiones, congelamiento y preservación documental para preparar versiones destinadas a registro o depósito formal.
+
+La documentación debe mantenerse sincronizada con el código. Una versión destinada a registro o distribución estable deberá identificarse mediante un commit y, preferentemente, un tag inmutable.
+
 ## Autoría
 
 Desarrollado por **Alberto Jorge Galindo-Barboza**.
