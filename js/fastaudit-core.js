@@ -1,6 +1,6 @@
 /* =====================================================
-   FASTAudit Core v0.1.0-dev
-   Motor independiente para auditoría estructural de FASTA.
+   FASTAudit Core v0.2.0-dev
+   Motor independiente para auditoría estructural e integridad de FASTA.
    No depende de prrsv2-nomenclature-lab.
    ===================================================== */
 
@@ -14,9 +14,32 @@
   const IUPAC = new Set("ACGTRYSWKMBDHVN".split(""));
   const CANONICAL = new Set("ACGT".split(""));
   const STOPS = new Set(["TAA", "TAG", "TGA"]);
+  const DEFAULT_HEADER_DELIMITER = "|";
 
   function normalizeSequence(value) {
     return String(value || "").replace(/\s+/g, "").toUpperCase();
+  }
+
+  function normalizeDelimiter(value) {
+    if (value === null || typeof value === "undefined") return DEFAULT_HEADER_DELIMITER;
+    return String(value);
+  }
+
+  function splitHeaderFields(header, delimiter = DEFAULT_HEADER_DELIMITER) {
+    const text = String(header || "").trim();
+    const normalizedDelimiter = normalizeDelimiter(delimiter);
+    if (!normalizedDelimiter) return [text];
+    return text.split(normalizedDelimiter).map((field) => field.trim());
+  }
+
+  function canonicalIdFromHeader(header, delimiter = DEFAULT_HEADER_DELIMITER) {
+    const text = String(header || "").trim();
+    if (!text) return "";
+    const normalizedDelimiter = normalizeDelimiter(delimiter);
+    if (normalizedDelimiter && text.includes(normalizedDelimiter)) {
+      return text.split(normalizedDelimiter)[0].trim();
+    }
+    return text.split(/\s+/)[0] || "";
   }
 
   function parseFasta(text) {
@@ -105,7 +128,33 @@
     };
   }
 
-  function analyzeRecord(record, options, headerOccurrences) {
+  function modeNumber(values) {
+    if (!values.length) return null;
+    const counts = new Map();
+    values.forEach((value) => counts.set(value, (counts.get(value) || 0) + 1));
+    return [...counts.entries()]
+      .sort((a, b) => (b[1] - a[1]) || (a[0] - b[0]))[0][0];
+  }
+
+  function calculateLengthStats(records) {
+    const lengths = records.map((record) => record.lengthNt).sort((a, b) => a - b);
+    if (!lengths.length) {
+      return { min: null, max: null, mean: null, median: null };
+    }
+    const total = lengths.reduce((sum, value) => sum + value, 0);
+    const middle = Math.floor(lengths.length / 2);
+    const median = lengths.length % 2
+      ? lengths[middle]
+      : (lengths[middle - 1] + lengths[middle]) / 2;
+    return {
+      min: lengths[0],
+      max: lengths[lengths.length - 1],
+      mean: total / lengths.length,
+      median
+    };
+  }
+
+  function analyzeRecord(record, options, context) {
     const sequence = record.sequence;
     const expectedLength = Number.isFinite(options.expectedLength) && options.expectedLength > 0
       ? options.expectedLength
@@ -134,13 +183,25 @@
     return {
       recordIndex: record.recordIndex,
       id: record.id,
+      canonicalId: record.canonicalId,
+      missingCanonicalId: !record.canonicalId,
       header: record.header,
+      headerDelimiter: options.headerDelimiter,
+      headerFields: record.headerFields,
+      headerFieldCount: record.headerFields.length,
+      expectedHeaderFieldCount: context.expectedHeaderFieldCount,
+      headerFieldCountInconsistent:
+        context.expectedHeaderFieldCount !== null && record.headerFields.length !== context.expectedHeaderFieldCount,
       sequence,
       lengthNt: sequence.length,
       expectedLength,
       expectedLengthMatch: expectedLength === null ? null : sequence.length === expectedLength,
-      headerOccurrences,
-      duplicateHeader: headerOccurrences > 1,
+      headerOccurrences: context.headerOccurrences,
+      duplicateHeader: context.headerOccurrences > 1,
+      canonicalIdOccurrences: context.canonicalIdOccurrences,
+      duplicateCanonicalId: Boolean(record.canonicalId) && context.canonicalIdOccurrences > 1,
+      canonicalIdSequenceVariants: context.canonicalIdSequenceVariants,
+      idSequenceConflict: Boolean(record.canonicalId) && context.canonicalIdSequenceVariants > 1,
       iupacValid,
       nonIupacCount,
       nonIupacSymbols: nonIupac,
@@ -206,6 +267,19 @@
       lengths[record.lengthNt] = (lengths[record.lengthNt] || 0) + 1;
     });
 
+    const fieldCounts = {};
+    records.forEach((record) => {
+      fieldCounts[record.headerFieldCount] = (fieldCounts[record.headerFieldCount] || 0) + 1;
+    });
+
+    const duplicateCanonicalIds = new Set(
+      records.filter((record) => record.duplicateCanonicalId).map((record) => record.canonicalId)
+    );
+    const idSequenceConflicts = new Set(
+      records.filter((record) => record.idSequenceConflict).map((record) => record.canonicalId)
+    );
+    const lengthStats = calculateLengthStats(records);
+
     return {
       totalRecords: records.length,
       expectedLength: options.expectedLength || null,
@@ -214,6 +288,14 @@
         : null,
       duplicateHeaderRecords: records.filter((record) => record.duplicateHeader).length,
       duplicateHeaderGroups: new Set(records.filter((record) => record.duplicateHeader).map((record) => record.header)).size,
+      duplicateCanonicalIdRecords: records.filter((record) => record.duplicateCanonicalId).length,
+      duplicateCanonicalIdGroups: duplicateCanonicalIds.size,
+      idSequenceConflictRecords: records.filter((record) => record.idSequenceConflict).length,
+      idSequenceConflictGroups: idSequenceConflicts.size,
+      missingCanonicalIdRecords: records.filter((record) => record.missingCanonicalId).length,
+      expectedHeaderFieldCount: records.length ? records[0].expectedHeaderFieldCount : null,
+      inconsistentHeaderFieldRecords: records.filter((record) => record.headerFieldCountInconsistent).length,
+      headerFieldCountDistribution: fieldCounts,
       iupacValidRecords: records.filter((record) => record.iupacValid).length,
       strictACGTRecords: records.filter((record) => record.strictACGT).length,
       ambiguousIupacRecords: records.filter((record) => record.iupacValid && !record.strictACGT).length,
@@ -227,7 +309,165 @@
       startATGRecords: options.codingMode ? records.filter((record) => record.startATG).length : null,
       terminalStopRecords: options.codingMode ? records.filter((record) => record.terminalStop).length : null,
       internalStopRecords: options.codingMode ? records.filter((record) => record.internalStopCount > 0).length : null,
+      lengthMin: lengthStats.min,
+      lengthMax: lengthStats.max,
+      lengthMean: lengthStats.mean,
+      lengthMedian: lengthStats.median,
       lengthDistribution: lengths
+    };
+  }
+
+  function groupBy(records, keySelector, skipEmpty = false) {
+    const groups = new Map();
+    records.forEach((record) => {
+      const key = keySelector(record);
+      if (skipEmpty && !key) return;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(record);
+    });
+    return groups;
+  }
+
+  function setEquals(a, b) {
+    if (a.size !== b.size) return false;
+    for (const value of a) if (!b.has(value)) return false;
+    return true;
+  }
+
+  function setIntersection(a, b) {
+    return new Set([...a].filter((value) => b.has(value)));
+  }
+
+  function summarizeComparisonRows(rows, sequenceMapA, sequenceMapB) {
+    const statusCounts = {};
+    rows.forEach((row) => {
+      statusCounts[row.status] = (statusCounts[row.status] || 0) + 1;
+    });
+
+    const commonSequences = new Set(
+      [...sequenceMapA.keys()].filter((sequence) => sequenceMapB.has(sequence))
+    );
+
+    let relabeledSequenceCount = 0;
+    commonSequences.forEach((sequence) => {
+      const idsA = new Set(sequenceMapA.get(sequence).map((record) => record.canonicalId).filter(Boolean));
+      const idsB = new Set(sequenceMapB.get(sequence).map((record) => record.canonicalId).filter(Boolean));
+      if (idsA.size && idsB.size && setIntersection(idsA, idsB).size === 0) relabeledSequenceCount += 1;
+    });
+
+    const sequenceMultisetA = [...sequenceMapA.entries()]
+      .flatMap(([sequence, records]) => Array(records.length).fill(sequence))
+      .sort();
+    const sequenceMultisetB = [...sequenceMapB.entries()]
+      .flatMap(([sequence, records]) => Array(records.length).fill(sequence))
+      .sort();
+
+    return {
+      comparedCanonicalIds: rows.length,
+      preservedIds: statusCounts.PRESERVED || 0,
+      headerChangedIds: statusCounts.HEADER_CHANGED || 0,
+      modifiedSequenceIds: statusCounts.MODIFIED_SEQUENCE || 0,
+      idSequenceSetChangedIds: statusCounts.ID_SEQUENCE_SET_CHANGED || 0,
+      relabeledIdRows: statusCounts.ID_RENAMED_OR_RELABELED || 0,
+      removedIds: statusCounts.REMOVED || 0,
+      addedIds: statusCounts.ADDED || 0,
+      exactSequenceOverlap: commonSequences.size,
+      relabeledSequenceCount,
+      sequenceMultisetPreserved:
+        sequenceMultisetA.length === sequenceMultisetB.length &&
+        sequenceMultisetA.every((value, index) => value === sequenceMultisetB[index])
+    };
+  }
+
+  function compareAnalyses(analysisA, analysisB) {
+    if (!analysisA || !analysisB || !analysisA.records || !analysisB.records) {
+      throw new Error("Se requieren dos análisis FASTAudit válidos para comparar datasets.");
+    }
+
+    const byIdA = groupBy(analysisA.records, (record) => record.canonicalId, true);
+    const byIdB = groupBy(analysisB.records, (record) => record.canonicalId, true);
+    const bySequenceA = groupBy(analysisA.records, (record) => record.sequence);
+    const bySequenceB = groupBy(analysisB.records, (record) => record.sequence);
+    const allIds = [...new Set([...byIdA.keys(), ...byIdB.keys()])].sort((a, b) => a.localeCompare(b));
+
+    const rows = allIds.map((canonicalId) => {
+      const recordsA = byIdA.get(canonicalId) || [];
+      const recordsB = byIdB.get(canonicalId) || [];
+      const sequencesA = new Set(recordsA.map((record) => record.sequence));
+      const sequencesB = new Set(recordsB.map((record) => record.sequence));
+      const headersA = new Set(recordsA.map((record) => record.header));
+      const headersB = new Set(recordsB.map((record) => record.header));
+      const overlap = setIntersection(sequencesA, sequencesB);
+
+      let status;
+      let note = "";
+      const counterpartIds = new Set();
+
+      if (recordsA.length && recordsB.length) {
+        if (setEquals(sequencesA, sequencesB)) {
+          if (setEquals(headersA, headersB)) {
+            status = "PRESERVED";
+            note = "ID canónico, secuencia(s) y encabezado(s) preservados.";
+          } else {
+            status = "HEADER_CHANGED";
+            note = "ID canónico y secuencia(s) preservados; cambió el texto del encabezado.";
+          }
+        } else if (overlap.size) {
+          status = "ID_SEQUENCE_SET_CHANGED";
+          note = "El ID existe en ambos datasets, pero cambió el conjunto de secuencias asociado.";
+        } else {
+          status = "MODIFIED_SEQUENCE";
+          note = "El mismo ID canónico aparece con secuencia(s) diferente(s).";
+        }
+      } else {
+        const sourceRecords = recordsA.length ? recordsA : recordsB;
+        const otherSequenceMap = recordsA.length ? bySequenceB : bySequenceA;
+
+        sourceRecords.forEach((record) => {
+          const matches = otherSequenceMap.get(record.sequence) || [];
+          matches.forEach((match) => {
+            if (match.canonicalId && match.canonicalId !== canonicalId) counterpartIds.add(match.canonicalId);
+          });
+        });
+
+        if (counterpartIds.size) {
+          status = "ID_RENAMED_OR_RELABELED";
+          note = "La secuencia exacta se conserva en el otro FASTA bajo otro ID canónico.";
+        } else if (recordsA.length) {
+          status = "REMOVED";
+          note = "ID presente solo en el FASTA A y sin secuencia exacta equivalente en B.";
+        } else {
+          status = "ADDED";
+          note = "ID presente solo en el FASTA B y sin secuencia exacta equivalente en A.";
+        }
+      }
+
+      return {
+        canonicalId,
+        status,
+        note,
+        counterpartIds: [...counterpartIds].sort((a, b) => a.localeCompare(b)),
+        recordsA: recordsA.length,
+        recordsB: recordsB.length,
+        uniqueSequencesA: sequencesA.size,
+        uniqueSequencesB: sequencesB.size,
+        headersA: [...headersA],
+        headersB: [...headersB],
+        headerChanged: recordsA.length > 0 && recordsB.length > 0 && !setEquals(headersA, headersB)
+      };
+    });
+
+    return {
+      rows,
+      summary: summarizeComparisonRows(rows, bySequenceA, bySequenceB),
+      datasetA: {
+        totalRecords: analysisA.summary.totalRecords,
+        uniqueSequences: analysisA.summary.uniqueSequences
+      },
+      datasetB: {
+        totalRecords: analysisB.summary.totalRecords,
+        uniqueSequences: analysisB.summary.uniqueSequences
+      }
     };
   }
 
@@ -236,18 +476,46 @@
       expectedLength: Number(inputOptions && inputOptions.expectedLength) > 0
         ? Number(inputOptions.expectedLength)
         : null,
-      codingMode: Boolean(inputOptions && inputOptions.codingMode)
+      codingMode: Boolean(inputOptions && inputOptions.codingMode),
+      headerDelimiter: normalizeDelimiter(
+        inputOptions && Object.prototype.hasOwnProperty.call(inputOptions, "headerDelimiter")
+          ? inputOptions.headerDelimiter
+          : DEFAULT_HEADER_DELIMITER
+      )
     };
 
-    const parsed = parseFasta(text);
+    const parsed = parseFasta(text).map((record) => ({
+      ...record,
+      canonicalId: canonicalIdFromHeader(record.header, options.headerDelimiter),
+      headerFields: splitHeaderFields(record.header, options.headerDelimiter)
+    }));
+
     const headerCountMap = new Map();
     parsed.forEach((record) => {
       headerCountMap.set(record.header, (headerCountMap.get(record.header) || 0) + 1);
     });
 
+    const canonicalIdCountMap = new Map();
+    const canonicalIdSequenceMap = new Map();
+    parsed.forEach((record) => {
+      if (!record.canonicalId) return;
+      canonicalIdCountMap.set(record.canonicalId, (canonicalIdCountMap.get(record.canonicalId) || 0) + 1);
+      if (!canonicalIdSequenceMap.has(record.canonicalId)) canonicalIdSequenceMap.set(record.canonicalId, new Set());
+      canonicalIdSequenceMap.get(record.canonicalId).add(record.sequence);
+    });
+
+    const expectedHeaderFieldCount = modeNumber(parsed.map((record) => record.headerFields.length));
     const exactGroups = assignExactSequenceGroups(parsed);
+
     const analyzed = await Promise.all(parsed.map(async (record) => {
-      const base = analyzeRecord(record, options, headerCountMap.get(record.header) || 1);
+      const base = analyzeRecord(record, options, {
+        headerOccurrences: headerCountMap.get(record.header) || 1,
+        canonicalIdOccurrences: record.canonicalId ? (canonicalIdCountMap.get(record.canonicalId) || 1) : 0,
+        canonicalIdSequenceVariants: record.canonicalId
+          ? (canonicalIdSequenceMap.get(record.canonicalId) || new Set()).size
+          : 0,
+        expectedHeaderFieldCount
+      });
       const group = exactGroups.metadata.get(record.sequence);
       return {
         ...base,
@@ -258,10 +526,20 @@
       };
     }));
 
+    const recordPairMaterial = analyzed
+      .map((record) => `${record.canonicalId}\t${record.sequenceSha256}`)
+      .sort()
+      .join("\n");
+    const sequenceMaterial = analyzed.map((record) => record.sequenceSha256).sort().join("\n");
+
     return {
       options,
       records: analyzed,
-      summary: summarize(analyzed, options)
+      summary: summarize(analyzed, options),
+      fingerprints: {
+        idSequencePairsSha256: await sha256(recordPairMaterial),
+        sequenceMultisetSha256: await sha256(sequenceMaterial)
+      }
     };
   }
 
@@ -269,11 +547,15 @@
     IUPAC,
     CANONICAL,
     STOPS,
+    DEFAULT_HEADER_DELIMITER,
     normalizeSequence,
+    splitHeaderFields,
+    canonicalIdFromHeader,
     parseFasta,
     analyzeCoding,
     analyzeRecord,
     analyzeDataset,
+    compareAnalyses,
     sha256,
     symbolSummary
   };

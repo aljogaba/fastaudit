@@ -2,6 +2,37 @@
 
 Todos los cambios relevantes de FASTAudit se documentarán en este archivo.
 
+## [0.2.0-dev] - 2026-11-03
+
+### Añadido
+
+- ID canónico derivado del encabezado.
+  - Por defecto se usa el primer campo antes de `|`.
+  - Si `|` no aparece, se conserva el comportamiento de primer token separado por espacios.
+  - El delimitador es editable.
+  - El encabezado completo original se conserva.
+- Auditoría de IDs canónicos duplicados.
+- Detección de conflicto fuerte cuando un mismo ID canónico está asociado a secuencias distintas.
+- Parser de encabezados por delimitador y exportación de campos separados al CSV.
+- Auditoría de consistencia del número de campos del encabezado.
+- Estadísticos de longitud: mínimo, máximo, media y mediana.
+- Dos huellas SHA-256 globales e independientes del orden:
+  - multiconjunto de secuencias;
+  - pares ID canónico–secuencia.
+- Comparación opcional entre dos FASTA completamente en cliente.
+- Estados de comparación para preservación, cambio de encabezado, modificación de secuencia, cambios parciales del conjunto ID/secuencia, re-etiquetado de ID, altas y bajas.
+- Exportación independiente de la comparación A↔B a CSV.
+- Inclusión de la comparación y las huellas globales en el reporte HTML.
+- Batería automatizada ampliada a 10 pruebas.
+
+### Decisiones de diseño
+
+- FASTAudit continúa sin backend ni dependencias de producción.
+- No se usa `-` como separador automático de ID porque puede formar parte legítima de accessions o identificadores.
+- El ID canónico es un atributo derivado y nunca sustituye el encabezado fuente.
+- La comparación A↔B se basa en identidad exacta; no realiza alineamiento ni inferencia genética.
+- FASTAudit sigue siendo independiente de `DiseasesMapMx/prrsv2-nomenclature-lab`.
+
 ## [0.1.0-dev] - 2026-11-02
 
 ### Añadido
