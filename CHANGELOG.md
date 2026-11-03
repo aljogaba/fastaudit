@@ -25,6 +25,15 @@ Todos los cambios relevantes de FASTAudit se documentarán en este archivo.
 - Inclusión de la comparación y las huellas globales en el reporte HTML.
 - Batería automatizada ampliada a 10 pruebas.
 
+### Documentación
+
+- Índice documental en `docs/README.md`.
+- Manual formal de usuario en `docs/manual-usuario.md`.
+- Descripción de arquitectura técnica en `docs/arquitectura.md`.
+- Expediente interno de trazabilidad, congelamiento de versiones y preparación documental en `docs/trazabilidad-registro.md`.
+- Enlaces a la documentación formal incorporados al `README.md`.
+- Se establece como regla documental que las versiones candidatas a registro o distribución estable deben identificarse mediante commit exacto y, preferentemente, tag inmutable.
+
 ### Decisiones de diseño
 
 - FASTAudit continúa sin backend ni dependencias de producción.
